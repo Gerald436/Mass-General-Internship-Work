@@ -1,16 +1,16 @@
-// #States:
-// #0: Blinking LED
-// #1: On LED
-// #2: Off LED
-// try doing updateclass(); or smth like that up here
 int STATE;
 int LED_LIGHT = 9;
 int SAFETY_SWITCH = 7;
 int REPEAT;
 
+int i = 0;
+
+const int BLINK_STATE = 0;
+const int OFF_STATE = 1;
+const int ON_STATE = 2;
+
 void updateState(){
-	///write code for updating the state here
-	//1.get a string from python
+  //1.get a string from python
   //2.Compare it to the set options
   //3.Change the state
   if (Serial.available() > 0){
@@ -20,16 +20,13 @@ void updateState(){
     REPEAT = msg.substring(spaceIndex + 1).toInt();
 
     if (command == "BLINK"){
-      //led.blinkLED();
-      STATE = 0;
+      STATE = BLINK_STATE;
     }
     else if (command == "OFF"){
-     //led.turnOFF();
-     STATE = 1;
+     STATE = OFF_STATE;
     }
     else if (command == "ON"){
-     //led.turnON();
-     STATE = 2;
+     STATE = ON_STATE;
     }
   }
 }
@@ -37,13 +34,10 @@ void updateState(){
 class LED {
   public:
     void blinkLED() {
-      // while (STATE == 0) { 
-        digitalWrite(LED_LIGHT, HIGH);
-        delay(100);
-        digitalWrite(LED_LIGHT, LOW);
-        delay(100);
-      // updateState();
-      // }
+      digitalWrite(LED_LIGHT, HIGH);
+      delay(100);
+      digitalWrite(LED_LIGHT, LOW);
+      delay(100);
     }
     
     void turnOFF() { 
@@ -57,22 +51,32 @@ class LED {
 LED led;
 
 
-
 void executeStateBehavior(){
-	////write code for executing the state behavior
+  if (i == REPEAT){
+    i=0;
+    STATE = OFF_STATE;
+  }
+  
   if (digitalRead(SAFETY_SWITCH) == HIGH){
-    if (STATE == 0){
-      led.blinkLED();
+    if (STATE == BLINK_STATE){
+      for (; i < REPEAT; i++) {
+        if (digitalRead(SAFETY_SWITCH) == LOW){
+          STATE = OFF_STATE;
+          break;
+        }
+        led.blinkLED();
+      }
     }
-    if (STATE == 1){
+    if (STATE == OFF_STATE){
      led.turnOFF();
     }
-   if (STATE == 2){
+   if (STATE == ON_STATE){
      led.turnON();
     }
   }
   else{
-     led.turnOFF();
+    led.turnOFF();
+    STATE = OFF_STATE;
   }
 }
 
@@ -82,30 +86,12 @@ void setup() {
   pinMode(LED_LIGHT, OUTPUT);
   pinMode(SAFETY_SWITCH, INPUT);
   
-  //Initilize the arduino in state 0:
   digitalWrite(11, HIGH);
-  STATE = 1;
+  STATE = OFF_STATE;
   
 }
 
 void loop() {
-
-	//1) check if I need update my state
-  // if theres some appropriate message (msg) -> transition to that state (e.g. state=1...)
   updateState();
-  
-  //2) exectute corrresponding behavior to that state
-  //if the state is 0, we blink, if the state is 1, we off, ...
-  for (int i = 0; i < REPEAT; i++) {
-    executeStateBehavior();
-  }
-
-  if (STATE != 2){
-    STATE =1;
-  }
+  executeStateBehavior();
 }
-
-  
-
-
-
