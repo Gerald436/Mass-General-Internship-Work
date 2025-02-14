@@ -3,14 +3,36 @@ bool DIRECTION;
 int STEPS;
 int TIME_FOR_STEP;
 
+int SAFETY_LIGHT = 2;
+int IDLE_LIGHT = 3;
+int MOVE_LIGHT = 4;
 int SAFETY_SWITCH =8;
 int DIR_PIN = 12;
 int STEP_PIN = 11;
 
 int i = 0;
 
+const int SAFETY_STATE = 2;
 const int MOVE_STATE = 1;
 const int IDLE_STATE = 0;
+
+void executeLight(){
+  if (STATE == MOVE_STATE){
+      digitalWrite(SAFETY_LIGHT, LOW);
+      digitalWrite(MOVE_LIGHT, HIGH);
+      digitalWrite(IDLE_LIGHT, LOW);
+    }
+  if(STATE == IDLE_STATE){
+      digitalWrite(SAFETY_LIGHT, LOW);
+      digitalWrite(MOVE_LIGHT, LOW);
+      digitalWrite(IDLE_LIGHT, HIGH);
+  }
+  if (STATE == SAFETY_STATE){
+      digitalWrite(SAFETY_LIGHT, HIGH);
+      digitalWrite(MOVE_LIGHT, LOW);
+      digitalWrite(IDLE_LIGHT, LOW);
+  }
+}
 
 void readData(){
   if (Serial.available() > 0){
@@ -72,9 +94,11 @@ void setup() {
   pinMode(STEP_PIN, OUTPUT);
 
   STATE = IDLE_STATE;
+  digitalWrite(IDLE_LIGHT, HIGH);
 }
 
 void loop() {
   readData();
+  executeLight();
   executeStateBehavior();
 }
