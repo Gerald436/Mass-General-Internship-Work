@@ -68,7 +68,7 @@ void executeStateBehavior(){
       digitalWrite(DIR_PIN, DIRECTION);
       for (; i < abs(STEPS); i++) {
         if (digitalRead(SAFETY_SWITCH) == LOW){
-          STATE = IDLE_STATE;
+          STATE = SAFETY_STATE;
           break;
         }
         digitalWrite(STEP_PIN, HIGH);
@@ -83,7 +83,7 @@ void executeStateBehavior(){
   }
   else{
     digitalWrite(STEP_PIN, LOW);
-    STATE = IDLE_STATE;
+    STATE = SAFETY_STATE;
   }
 }
 
