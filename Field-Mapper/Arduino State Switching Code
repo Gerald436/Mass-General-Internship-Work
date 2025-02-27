@@ -1,0 +1,239 @@
+int STATE;
+bool DIRECTION;
+int STEPS;
+int POSITION;
+bool IS_ENABLED;
+
+int TIME_FOR_STEP = 400;
+
+int SAFETY_LIGHT = 7;
+int IDLE_LIGHT = 4;
+int MOVE_LIGHT = 2;
+int SAFETY_SWITCH =8;
+int STEP_PIN = 11;
+int DIR_PIN = 12;
+int ENABLE_PIN = 13;
+
+const bool ENABLED = false;
+const bool DISABLED = true;
+const int SAFETY_STATE = 2;
+const int MOVE_STATE = 1;
+const int IDLE_STATE = 0;
+
+void ReadData(){
+  if (Serial.available() > 0) {
+    String msg = Serial.readString();
+    msg.trim();
+    int spaceIndex = msg.indexOf(' ');
+    String function = msg.substring(0, spaceIndex);
+    
+    if(function.equals("digitalread")){
+      int pin = msg.substring(spaceIndex + 1).toInt();
+      
+      DigitalRead(pin);
+    }else if(function.equals("digitalwrite")){
+      int spaceIndex1 = msg.indexOf(' ', spaceIndex + 1);
+      int pin = msg.substring(spaceIndex + 1, spaceIndex1).toInt();
+      String state = msg.substring(spaceIndex1 + 1);
+      state.toUpperCase();
+      
+      DigitalWrite(pin, state);
+    }else if(function.equals("executebehavior")){
+      int spaceIndex1 = msg.indexOf(' ', spaceIndex + 1);
+      int spaceIndex2 = msg.indexOf(' ', spaceIndex1 + 1);
+      
+      String stateMsg = msg.substring(spaceIndex + 1, spaceIndex1);
+      stateMsg.toUpperCase();
+      STEPS = msg.substring(spaceIndex1 + 1, spaceIndex2).toInt();
+      String enb = msg.substring(spaceIndex2 + 1);
+      enb.toUpperCase();
+  
+      if (enb.equals("ENABLE")){
+        IS_ENABLED = ENABLED;
+      }
+      else{
+        IS_ENABLED = DISABLED;
+      }
+      
+      if (stateMsg.equals("MOVE") && STATE != SAFETY_STATE){
+        STATE = MOVE_STATE;
+        ExecuteLight();
+      }
+      else if (stateMsg.equals("IDLE")){
+        STATE = IDLE_STATE;
+      }
+  
+      if (STEPS > 0){
+        DIRECTION = true;
+      }
+      else{
+        DIRECTION = false;
+      }
+      
+      ExecuteStateBehavior();
+    }else if(function.equals("senddata")){
+      SendData();
+    }
+  }
+  else{
+    if (digitalRead(SAFETY_SWITCH) == LOW){
+      STATE = SAFETY_STATE;
+      ExecuteLight();
+    }
+  }
+}
+
+void DigitalRead(int pin) {
+  if (pin >= 0 && pin <= 13) {
+    Serial.print("Digital Read (Pin ");
+    Serial.print(pin);
+    Serial.print("): ");
+    Serial.println(digitalRead(pin)== 1 ? "HIGH" : "LOW");
+  } else {
+    Serial.println("Error: Invalid pin number");
+  }
+}
+
+void DigitalWrite(int pin, String state) {
+  int integerState;
+  if (pin >= 0 && pin <= 13 && (state.equals("HIGH") || state.equals("LOW"))) { 
+    pinMode(pin, OUTPUT);
+    
+    if (state.equals("HIGH")){
+      integerState = 1;
+    }
+    if (state.equals("LOW")){
+      integerState = 0;
+    }
+    
+    digitalWrite(pin, integerState);
+    Serial.print("Digital Write (Pin ");
+    Serial.print(pin);
+    Serial.print("): ");
+    Serial.println(state);
+  } else {
+    Serial.println("Error: Invalid pin number or state. Use high or low.");
+  }
+}
+
+void SendData() {
+  
+  if(STATE == IDLE_STATE){
+    Serial.println("IDLE");
+  }else if(STATE == MOVE_STATE){
+    Serial.println("MOVE");
+  }else if(STATE == SAFETY_STATE){
+    Serial.println("SAFETY");
+  }
+  
+  Serial.println(DIRECTION ? "FORWARD" : "BACKWARD");
+  
+  Serial.println(IS_ENABLED ? "NO" : "YES");
+  
+  Serial.println(POSITION);
+  
+  Serial.println(TIME_FOR_STEP);
+  
+  Serial.println(digitalRead(SAFETY_LIGHT) == HIGH ? "ON" : "OFF");
+  
+  Serial.println(digitalRead(IDLE_LIGHT) == HIGH ? "ON" : "OFF");
+  
+  Serial.println(digitalRead(MOVE_LIGHT) == HIGH ? "ON" : "OFF");
+  
+  Serial.println(digitalRead(SAFETY_SWITCH) == LOW ? "PRESSED" : "NOT PRESSED");
+  
+  Serial.println(digitalRead(DIR_PIN) == HIGH ? "HIGH" : "LOW");
+  
+  Serial.println(digitalRead(STEP_PIN) == HIGH ? "HIGH" : "LOW");
+  
+  Serial.println(digitalRead(ENABLE_PIN) == HIGH ? "HIGH" : "LOW");
+}
+
+void ExecuteLight(){
+  if (STATE == MOVE_STATE){
+      digitalWrite(SAFETY_LIGHT, LOW);
+      digitalWrite(MOVE_LIGHT, HIGH);
+      digitalWrite(IDLE_LIGHT, LOW);
+    }
+  if(STATE == IDLE_STATE){
+      digitalWrite(SAFETY_LIGHT, LOW);
+      digitalWrite(MOVE_LIGHT, LOW);
+      digitalWrite(IDLE_LIGHT, HIGH);
+  }
+  if (STATE == SAFETY_STATE){
+      digitalWrite(SAFETY_LIGHT, HIGH);
+      digitalWrite(MOVE_LIGHT, LOW);
+      digitalWrite(IDLE_LIGHT, LOW);
+  }
+}
+ 
+void ExecuteStateBehavior(){
+  digitalWrite(ENABLE_PIN, IS_ENABLED);
+  if (digitalRead(SAFETY_SWITCH) == HIGH){
+    if (STATE == MOVE_STATE){
+      digitalWrite(DIR_PIN, DIRECTION);
+      for (int i=0; i < abs(STEPS); i++) {
+        if (digitalRead(SAFETY_SWITCH) == LOW){
+          STATE = SAFETY_STATE;
+          IS_ENABLED = DISABLED;
+          Serial.println("aa");
+          Serial.println(i-1);
+          ExecuteLight();
+          break;
+        }
+        digitalWrite(STEP_PIN, HIGH);
+        delayMicroseconds(TIME_FOR_STEP);
+        digitalWrite(STEP_PIN, LOW);
+        delayMicroseconds(TIME_FOR_STEP);
+        POSITION += 1;
+        ExecuteLight();
+      }
+      if (STATE != SAFETY_STATE){
+        Serial.println("ab");
+        Serial.println(STEPS);
+        STATE = IDLE_STATE;
+        IS_ENABLED = DISABLED;
+        ExecuteLight();
+      }
+    }
+    else if (STATE == IDLE_STATE){
+      digitalWrite(STEP_PIN, LOW);
+      Serial.println("ac");
+      IS_ENABLED = DISABLED;
+      ExecuteLight();
+    }
+    else if (STATE == SAFETY_STATE){
+      digitalWrite(STEP_PIN, LOW);
+      Serial.println("ad");
+      IS_ENABLED = DISABLED;
+      ExecuteLight();
+    }
+  }
+  else{
+    digitalWrite(STEP_PIN, LOW);
+    Serial.println("ad");
+    STATE = SAFETY_STATE;
+    IS_ENABLED = DISABLED;
+    ExecuteLight();
+  }
+  ExecuteLight();
+  digitalWrite(ENABLE_PIN, IS_ENABLED);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(SAFETY_SWITCH, INPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(ENABLE_PIN, OUTPUT);
+  pinMode(SAFETY_LIGHT, OUTPUT);
+  pinMode(MOVE_LIGHT, OUTPUT);
+  pinMode(IDLE_LIGHT, OUTPUT);
+
+  STATE = IDLE_STATE;
+  IS_ENABLED = DISABLED;
+}
+
+void loop() {
+  ReadData();
+}
